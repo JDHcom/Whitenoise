@@ -1,0 +1,2 @@
+# Whitenoise
+Whitenoise-site
