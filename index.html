@@ -149,15 +149,15 @@
             <!-- Спиннер загрузки -->
             <div id="loader" class="flex flex-col items-center justify-center py-16">
                 <div class="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p class="text-gray-500 dark:text-gray-400 text-sm">Получение актуальных данных из репозитория...</p>
+                <p class="text-gray-500 dark:text-gray-400 text-sm">Получение актуальных данных...</p>
             </div>
 
-            <!-- Блок ошибки -->
-            <div id="errorState" class="hidden bg-red-500/10 border border-red-500/20 rounded-xl p-6 text-center max-w-md mx-auto my-8">
-                <i data-lucide="alert-circle" class="w-12 h-12 text-red-500 mx-auto mb-3"></i>
-                <h4 class="text-lg font-bold text-red-500 mb-1">Не удалось загрузить данные</h4>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Проверьте правильность ссылки на файл конфигурации в коде.</p>
-                <button onclick="fetchLinks()" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-semibold rounded-lg transition-colors">
+            <!-- Блок ошибки / Кэшированного режима -->
+            <div id="errorState" class="hidden bg-amber-500/10 border border-amber-500/20 rounded-xl p-6 text-center max-w-md mx-auto my-8">
+                <i id="errorIcon" data-lucide="alert-circle" class="w-12 h-12 text-amber-500 mx-auto mb-3"></i>
+                <h4 id="errorTitle" class="text-lg font-bold text-amber-500 mb-1">Не удалось загрузить данные</h4>
+                <p id="errorDesc" class="text-sm text-gray-500 dark:text-gray-400 mb-4">Проверьте подключение к сети или правильность ссылки на файл.</p>
+                <button onclick="fetchLinks()" class="px-4 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-semibold rounded-lg transition-colors">
                     Повторить попытку
                 </button>
             </div>
@@ -177,7 +177,7 @@
                 © 2026 Белый шум. Все права защищены.
             </p>
             <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                Данный сайт автоматически синхронизируется с репозиторием GitHub.
+                Синхронизация с репозиторием GitHub.
             </p>
         </div>
     </footer>
@@ -185,9 +185,8 @@
     <!-- Скрипты логики -->
     <script>
         // === НАСТРОЙКА ИСТОЧНИКА ДАННЫХ ===
-        // Замените этот URL на адрес вашего Raw-файла на гитхабе!
-        // Пример формата: https://raw.githubusercontent.com/ВАШ_НИК/ИМЯ_РЕПОЗИТОРИЯ/main/links.txt
-        const GITHUB_TXT_URL = "https://raw.githubusercontent.com/JDHcom/Whitenoise/refs/heads/main/list.txt";
+        // Убедитесь, что эта ссылка ведет именно на RAW-версию вашего файла на GitHub.
+        const GITHUB_TXT_URL = "https://raw.githubusercontent.com/white-noise-project/configs/main/links.txt";
 
         // Состояния темы
         const themeToggleBtn = document.getElementById('themeToggle');
@@ -231,7 +230,6 @@
             tempInput.select();
             
             try {
-                // Используем рекомендованный execCommand для надежности внутри iframe окружения
                 document.execCommand('copy');
                 showToast(`Ключ №${num} успешно скопирован!`);
             } catch (err) {
@@ -256,18 +254,59 @@
                 toast.classList.add('bg-emerald-600');
             }
 
-            // Показываем
             toast.classList.remove('translate-y-20', 'opacity-0', 'pointer-events-none');
             toast.classList.add('translate-y-0', 'opacity-100');
 
-            // Прячем через 2.5 секунды
             setTimeout(() => {
                 toast.classList.remove('translate-y-0', 'opacity-100');
                 toast.classList.add('translate-y-20', 'opacity-0', 'pointer-events-none');
             }, 2500);
         }
 
-        // Загрузка и парсинг ссылок
+        // Рендеринг карточек из массива строк
+        function renderCards(lines) {
+            const cardsGrid = document.getElementById('cardsGrid');
+            const cardCount = document.getElementById('cardCount');
+            cardsGrid.innerHTML = '';
+            
+            cardCount.textContent = `Всего: ${lines.length}`;
+
+            lines.forEach((url, index) => {
+                const keyNumber = index + 1;
+                const card = document.createElement('div');
+                card.className = "bg-white dark:bg-[#161D30] border border-gray-200 dark:border-gray-800/80 rounded-2xl p-5 flex flex-col justify-between hover:border-indigo-500 dark:hover:border-indigo-500 transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/5 group";
+                
+                card.innerHTML = `
+                    <div class="mb-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
+                                Конфигурация
+                            </span>
+                            <i data-lucide="key-round" class="w-4 h-4 text-gray-400 group-hover:text-indigo-500 transition-colors"></i>
+                        </div>
+                        <h4 class="text-lg font-bold text-gray-900 dark:text-white">Ключ №${keyNumber}</h4>
+                        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate">
+                            Адрес скрыт в целях безопасности
+                        </p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="copy-btn w-full inline-flex items-center justify-center space-x-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-semibold text-sm rounded-xl transition-all duration-200 shadow-sm hover:shadow-md hover:shadow-indigo-600/10">
+                            <i data-lucide="copy" class="w-4 h-4"></i>
+                            <span>Скопировать</span>
+                        </button>
+                    </div>
+                `;
+
+                const copyBtn = card.querySelector('.copy-btn');
+                copyBtn.addEventListener('click', () => copyToClipboard(url, keyNumber));
+
+                cardsGrid.appendChild(card);
+            });
+
+            lucide.createIcons();
+        }
+
+        // Загрузка ссылок с защитой от сбоев
         async function fetchLinks() {
             const loader = document.getElementById('loader');
             const errorState = document.getElementById('errorState');
@@ -279,82 +318,74 @@
             cardsGrid.innerHTML = '';
             cardCount.textContent = 'Загрузка...';
 
-            try {
-                // Добавляем квери-параметр, чтобы избежать кэширования браузером при изменениях в репозитории
-                const response = await fetch(`${GITHUB_TXT_URL}?t=${new Date().getTime()}`);
-                
-                if (!response.ok) {
-                    throw new Error('Сеть ответила с ошибкой');
+            // Настройка повторных попыток с задержкой (Exponential Backoff)
+            const fetchWithRetry = async (url, retries = 3, delay = 1000) => {
+                for (let i = 0; i < retries; i++) {
+                    try {
+                        // Используем кэширование браузера, чтобы снизить нагрузку на API гитхаба.
+                        // Каждые 5 минут (300000 мс) кэш будет гарантированно сбрасываться.
+                        const cacheBuster = Math.floor(Date.now() / 300000); 
+                        const response = await fetch(`${url}?v=${cacheBuster}`, {
+                            headers: { 'Cache-Control': 'max-age=300' }
+                        });
+                        if (response.ok) return response;
+                    } catch (e) {
+                        if (i === retries - 1) throw e;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
                 }
+            };
+
+            try {
+                const response = await fetchWithRetry(GITHUB_TXT_URL);
+                if (!response.ok) throw new Error('Response not OK');
 
                 const text = await response.text();
                 
-                // Разбиваем текст по строкам, удаляем пустые пространства
+                // Фильтруем строки (удаляем пробельные символы и пустые строки)
                 const lines = text.split('\n')
                                   .map(line => line.trim())
-                                  .filter(line => line.length > 0);
+                                  .filter(line => line.length > 0 && (line.startsWith('http://') || line.startsWith('https://')));
 
                 if (lines.length === 0) {
-                    cardCount.textContent = 'Пусто';
-                    loader.classList.add('hidden');
-                    cardsGrid.innerHTML = `
-                        <div class="col-span-full text-center py-8 text-gray-500">
-                            В файле не обнаружено ссылок. Добавьте их в ваш репозиторий.
-                        </div>
-                    `;
-                    return;
+                    throw new Error('Файл пуст или содержит некорректный формат ссылок');
                 }
 
-                cardCount.textContent = `Всего: ${lines.length}`;
+                // Сохраняем в кэш браузера для бесперебойной работы
+                localStorage.setItem('cached_links', JSON.stringify(lines));
 
-                // Генерация карточек
-                lines.forEach((url, index) => {
-                    const keyNumber = index + 1;
-                    
-                    const card = document.createElement('div');
-                    card.className = "bg-white dark:bg-[#161D30] border border-gray-200 dark:border-gray-800/80 rounded-2xl p-5 flex flex-col justify-between hover:border-indigo-500 dark:hover:border-indigo-500 transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/5 group";
-                    
-                    card.innerHTML = `
-                        <div class="mb-4">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400">
-                                    Конфигурация
-                                </span>
-                                <i data-lucide="key-round" class="w-4 h-4 text-gray-400 group-hover:text-indigo-500 transition-colors"></i>
-                            </div>
-                            <h4 class="text-lg font-bold text-gray-900 dark:text-white">Ключ №${keyNumber}</h4>
-                            <p class="text-xs text-gray-400 dark:text-gray-500 mt-1 truncate">
-                                Адрес скрыт
-                            </p>
-                        </div>
-                        <div class="flex gap-2">
-                            <button class="copy-btn w-full inline-flex items-center justify-center space-x-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 dark:bg-indigo-600 dark:hover:bg-indigo-500 text-white font-semibold text-sm rounded-xl transition-all duration-200 shadow-sm hover:shadow-md hover:shadow-indigo-600/10">
-                                <i data-lucide="copy" class="w-4 h-4"></i>
-                                <span>Скопировать</span>
-                            </button>
-                        </div>
-                    `;
-
-                    // Назначаем обработчик на кнопку копирования
-                    const copyBtn = card.querySelector('.copy-btn');
-                    copyBtn.addEventListener('click', () => copyToClipboard(url, keyNumber));
-
-                    cardsGrid.appendChild(card);
-                });
-
-                // Инициализируем иконки внутри новых карточек
-                lucide.createIcons();
+                renderCards(lines);
                 loader.classList.add('hidden');
 
             } catch (error) {
-                console.error('Ошибка загрузки данных:', error);
+                console.warn('Сбой загрузки данных, проверяем локальный кэш...', error);
+                
+                // Проверяем, есть ли сохраненный список в localStorage
+                const cached = localStorage.getItem('cached_links');
+                if (cached) {
+                    const lines = JSON.parse(cached);
+                    renderCards(lines);
+                    
+                    // Показываем предупреждение, что данные загружены из локального кэша
+                    document.getElementById('errorTitle').textContent = "Временные неполадки сети";
+                    document.getElementById('errorDesc').textContent = "Данные загружены из кэша вашего устройства и могут незначительно отставать от репозитория.";
+                    document.getElementById('errorIcon').setAttribute('data-lucide', 'wifi-off');
+                    errorState.classList.remove('hidden');
+                    lucide.createIcons();
+                } else {
+                    // Если кэша тоже нет, выводим полноценную ошибку
+                    document.getElementById('errorTitle').textContent = "Не удалось загрузить данные";
+                    document.getElementById('errorDesc').textContent = "Проверьте стабильность соединения с интернетом или правильность пути к файлу конфигураций.";
+                    document.getElementById('errorIcon').setAttribute('data-lucide', 'alert-circle');
+                    errorState.classList.remove('hidden');
+                    lucide.createIcons();
+                }
+                
                 loader.classList.add('hidden');
-                errorState.classList.remove('hidden');
-                cardCount.textContent = 'Ошибка';
             }
         }
 
-        // Запуск загрузки при старте страницы
+        // Запуск при загрузке DOM
         window.addEventListener('DOMContentLoaded', fetchLinks);
     </script>
 </body>
